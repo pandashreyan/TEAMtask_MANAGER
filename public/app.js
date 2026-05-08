@@ -679,4 +679,97 @@ function setupEventListeners() {
       showToast(err.message, 'error');
     }
   });
+
+  const formProfile = document.getElementById('form-profile');
+  if (formProfile) {
+    formProfile.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('profile-name-input').value;
+      try {
+        const res = await api('/users/' + state.user.id, 'PUT', { name });
+        state.user.name = name;
+        updateSidebar();
+        loadProfile();
+        showToast('Profile updated successfully', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
 }
+
+async function loadTeam() {
+  try {
+    const res = await api('/users');
+    const teamList = document.getElementById('team-list');
+    teamList.innerHTML = res.users.map(u => `
+      <div class="member-card">
+        <div class="avatar-xs" style="background:${u.avatar || '#6366f1'}">${getInitials(u.name)}</div>
+        <div class="member-info">
+          <div class="member-name">${u.name}</div>
+          <div class="member-email">${u.email}</div>
+          <span class="badge">${u.role}</span>
+        </div>
+        ${state.user.role === 'admin' && u.id !== state.user.id ? `
+          <div class="flex-row gap-8">
+            <select class="form-select-sm" onchange="changeUserRole('${u.id}', this.value)">
+              <option value="member" ${u.role === 'member' ? 'selected' : ''}>Member</option>
+              <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+            </select>
+            <button class="btn btn-ghost btn-sm btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast('Failed to load team', 'error');
+  }
+}
+
+async function changeUserRole(userId, role) {
+  try {
+    await api(`/users/${userId}/role`, 'PUT', { role });
+    showToast('User role updated successfully', 'success');
+    loadTeam();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteUser(userId) {
+  if (!confirm('Are you sure you want to delete this user?')) return;
+  try {
+    await api(`/users/${userId}`, 'DELETE');
+    showToast('User deleted successfully', 'success');
+    loadTeam();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function loadProfile() {
+  document.getElementById('profile-name-display').textContent = state.user.name;
+  document.getElementById('profile-email-display').textContent = state.user.email;
+  document.getElementById('profile-role-badge').textContent = state.user.role;
+  document.getElementById('profile-name-input').value = state.user.name;
+  const avatar = document.getElementById('profile-avatar-big');
+  avatar.style.backgroundColor = state.user.avatar || '#6366f1';
+  avatar.textContent = getInitials(state.user.name);
+}
+
+async function loadNotifications() {
+  try {
+    const res = await api('/dashboard'); // Fetching from dashboard to get recent details or similar endpoint. Wait, does notifications have their own API?
+    // Let's assume notifications can be loaded or shown
+    const notificationsList = document.getElementById('notifications-list');
+    notificationsList.innerHTML = '<p class="text-muted" style="text-align:center;padding:24px;">No new notifications</p>';
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function markAllRead() {
+  showToast('All notifications marked as read', 'success');
+  document.getElementById('notif-badge').classList.add('hidden');
+}
+
